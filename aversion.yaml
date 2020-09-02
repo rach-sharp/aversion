@@ -1,0 +1,3 @@
+main:
+  adder:
+    base: main.adder
