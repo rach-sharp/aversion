@@ -1,8 +1,9 @@
+import dataclasses
 import functools
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import List
+from typing import List, Any, Union
 
 import git
 
@@ -14,6 +15,13 @@ LOGGER = logging.getLogger("aversion")
 VERSION_REPO = defaultdict(dict)
 VERSION_STACK = []
 LOADING_FUNC = None
+
+
+@dataclasses.dataclass
+class Run:
+    args: tuple
+    kwargs: dict
+    result: Union[Any, Exception]
 
 
 def get_func_version(target: str, options: List[str]):
@@ -37,6 +45,10 @@ def version(*args, **kwargs):
         _version = decorator_kwargs.get("v", "HEAD")
         if not hasattr(func, "version"):
             func.version = _version
+
+        if not hasattr(func, "runs"):
+            func.runs = []
+
         VERSION_REPO[func.canonical_name][_version] = func
 
         repo = git.Repo(Path(__file__).parent)
@@ -58,6 +70,7 @@ def version(*args, **kwargs):
             LOGGER.info(f"Running {target_func.canonical_name} {target_func.version}")
             VERSION_STACK.append(_version)
             result = target_func(*args, **kwargs)
+            target_func.runs.append(Run(args, kwargs, result))
             VERSION_STACK.pop(-1)
             return result
         return wrapper
@@ -117,3 +130,7 @@ def number_cruncher(a, b):
 if __name__ == "__main__":
     print(VERSION_REPO)
     number_cruncher(2, 3)
+
+    for func_name in VERSION_REPO:
+        for func in VERSION_REPO[func_name].values():
+            print(func.runs)
