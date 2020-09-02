@@ -1,3 +1,2 @@
-main:
-  adder:
-    base: main.adder
+main.adder:
+    3ac49ab6: main.adder
