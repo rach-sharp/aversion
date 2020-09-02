@@ -1,4 +1,5 @@
 import functools
+import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import List
@@ -6,6 +7,10 @@ from typing import List
 import git
 
 
+logging.basicConfig(level=logging.INFO)
+
+
+LOGGER = logging.getLogger("aversion")
 VERSION_REPO = defaultdict(dict)
 VERSION_STACK = []
 LOADING_FUNC = None
@@ -26,17 +31,19 @@ def version(*args, **kwargs):
         decorator_args = args
         decorator_kwargs = kwargs
 
-
         if not hasattr(func, "canonical_name"):
             func.canonical_name = ".".join([__name__,func.__name__])
+
         _version = decorator_kwargs.get("v", "HEAD")
+        if not hasattr(func, "version"):
+            func.version = _version
         VERSION_REPO[func.canonical_name][_version] = func
 
         repo = git.Repo(Path(__file__).parent)
-        print("repo: ", repo)
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            target_func = None
             if VERSION_STACK:
                 _parent_version = VERSION_STACK[-1]
 
@@ -44,13 +51,15 @@ def version(*args, **kwargs):
                     target=_parent_version,
                     options=list(VERSION_REPO[func.canonical_name].keys())
                 )
-                func_override = VERSION_REPO[func.canonical_name][best_version]
-                return func_override(*args, **kwargs)
+                target_func = VERSION_REPO[func.canonical_name][best_version]
             else:
-                VERSION_STACK.append(_version)
-                result = func(*args, **kwargs)
-                VERSION_STACK.pop(-1)
-                return result
+                target_func = func
+
+            LOGGER.info(f"Running {target_func.canonical_name} {target_func.version}")
+            VERSION_STACK.append(_version)
+            result = target_func(*args, **kwargs)
+            VERSION_STACK.pop(-1)
+            return result
         return wrapper
     if len(args) == 1 and callable(args[0]):
         return func_version(args[0])
@@ -76,11 +85,35 @@ def doubler(n):
     return 2 * n
 
 
+@version(v="0.0.1")
+def thanks():
+    print("thanks!")
+
+
 @version(v="0.0.2")
+def nested():
+    return nested_inner()
+
+
+@version(v="0.0.2")
+def nested_inner():
+    pass
+
+
+@version(v="0.0.3")
+def nested_inner():
+    pass
+
+
+@version(v="0.0.3")
 def number_cruncher(a, b):
     double_a = doubler(a)
-    return adder(double_a, b)
+    result = adder(double_a, b)
+    nested()
+    thanks()
+    return result
 
 
 if __name__ == "__main__":
+    print(VERSION_REPO)
     number_cruncher(2, 3)
