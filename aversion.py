@@ -1,4 +1,5 @@
 import dataclasses
+import enum
 import functools
 import json
 import logging
@@ -22,6 +23,7 @@ LOADING_FUNC = None
 
 
 class FunctionVersionStore(object):
+    """Stores diffrent versions of the same functions"""
 
     def __init__(self, path):
         self._path = path
@@ -63,7 +65,6 @@ def version(*args, **kwargs):
         if not hasattr(func, "version"):
             func.version = _version
 
-
         VERSION_REPO[func.canonical_name][_version] = func
         TEST_RUNS[func.canonical_name][_version] = []
 
@@ -103,7 +104,11 @@ def version(*args, **kwargs):
         return func_version
 
 
-@version(v="0.0.1")
+class Version(enum.Enum):
+    v0_0_1 = "v0.0.1"
+
+
+@version(v=Version.v0_0_1)
 def adder(x, y):
     return x + y
 

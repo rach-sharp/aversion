@@ -27,4 +27,3 @@ def run(test_cases):
 
     print(f"successes : {successes}")
     print(f"failures  : {failures}")
-
